@@ -4,5 +4,5 @@ compatibility_date = "2026-09-01"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "mooc"
-database_id = "9668b668-f1b4-4989-b2fa-37aef7672c0e"
+database_name = "mooc-db"
+database_id = "96730385-bbd3-4eab-8264-73f591024b36"
