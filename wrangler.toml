@@ -6,3 +6,6 @@ compatibility_date = "2026-09-01"
 binding = "DB"
 database_name = "mooc-db"
 database_id = "96730385-bbd3-4eab-8264-73f591024b36"
+
+[vars]
+RESEND_FROM = "MOOC IPWIJA <no-reply@sismadi.com>"
