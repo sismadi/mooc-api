@@ -68,6 +68,14 @@ async function handleApi(request, env) {
   const parts = url.pathname.split('/').filter(Boolean); // ['api', table, id?]
 
   if (parts[0] !== 'api' || !parts[1]) return json({ error: 'Not found' }, 404);
+
+  // Rute khusus (bukan tabel D1) — kirim email reset password via Resend.
+  // Ditaruh SEBELUM pengecekan `table in TABLES` supaya tidak bentrok
+  // dengan rute generik 7 tabel di bawah.
+  if (parts[1] === 'send-reset-email' && request.method === 'POST') {
+    return handleSendResetEmail(request, env);
+  }
+
   const table = parts[1];
   const id = parts[2];
   if (!(table in TABLES)) return json({ error: `Tabel '${table}' tidak dikenal` }, 400);
@@ -115,6 +123,52 @@ async function handleApi(request, env) {
   }
 
   return json({ error: 'Method not allowed' }, 405);
+}
+
+// ============================================================
+// Kirim email reset password lewat Resend (https://resend.com).
+// Butuh secret RESEND_API_KEY (set lewat `wrangler secret put
+// RESEND_API_KEY`, JANGAN ditulis di wrangler.toml). RESEND_FROM
+// opsional (var biasa, boleh di wrangler.toml) — default pakai
+// alamat sandbox Resend yang cuma bisa kirim ke email akun Resend
+// sendiri; untuk kirim ke SIAPA SAJA, verifikasi domain sendiri di
+// dashboard Resend dulu lalu set RESEND_FROM ke alamat di domain itu
+// (mis. no-reply@sismadi.com).
+// ============================================================
+async function handleSendResetEmail(request, env) {
+  if (!env.RESEND_API_KEY) {
+    return json({ error: 'RESEND_API_KEY belum di-set di Worker (wrangler secret put RESEND_API_KEY)' }, 500);
+  }
+
+  const { to, name, resetUrl } = await request.json();
+  if (!to || !resetUrl) return json({ error: 'Field to & resetUrl wajib diisi' }, 400);
+
+  const from = env.RESEND_FROM || 'MOOC IPWIJA <onboarding@resend.dev>';
+
+  const resendRes = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject: 'Reset Password — MOOC IPWIJA',
+      html: `
+        <p>Halo ${name || ''},</p>
+        <p>Ada permintaan reset password untuk akun MOOC IPWIJA Anda. Klik tautan di bawah untuk membuat password baru:</p>
+        <p><a href="${resetUrl}">${resetUrl}</a></p>
+        <p>Kalau Anda tidak meminta ini, abaikan saja email ini.</p>
+      `,
+    }),
+  });
+
+  const resendBody = await resendRes.json().catch(() => ({}));
+  if (!resendRes.ok) {
+    return json({ error: resendBody?.message || 'Gagal mengirim email lewat Resend' }, 502);
+  }
+  return json({ ok: true, id: resendBody?.id });
 }
 
 export default {
