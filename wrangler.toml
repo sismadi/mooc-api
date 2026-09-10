@@ -1,0 +1,8 @@
+name = "mooc-api"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mooc"
+database_id = "9668b668-f1b4-4989-b2fa-37aef7672c0e"
